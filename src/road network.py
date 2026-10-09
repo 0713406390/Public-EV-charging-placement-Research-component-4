@@ -31,3 +31,25 @@ G_proj = ox.project_graph(G, to_crs='EPSG:32644')
 gdf_nodes, gdf_edges = ox.graph_to_gdfs(G_proj)
 
 print(f"Success! Extracted {len(gdf_nodes)} intersections and {len(gdf_edges)} road segments.")
+
+# Tags for what we want to extract from OSM
+tags_pois = {
+    'amenity': ['fuel', 'parking'],
+    'parking': ['underground', 'multi-storey'] # Prioritize structured parking
+}
+
+print("Extracting Fuel Stations and Parking lots...")
+# This fetches POIs within our study area boundary
+gdf_pois = ox.features_from_polygon(study_area_boundary, tags=tags_pois)
+
+# Clean the POI data (keep only points, drop relation polygons for simplicity)
+gdf_pois = gdf_pois[gdf_pois.geometry.type == 'Point']
+
+# Project POIs to the same CRS as the road network
+gdf_pois = gdf_pois.to_crs('EPSG:32644')
+
+# Extract names if available
+gdf_pois['name'] = gdf_pois['name'].fillna('Unknown POI')
+gdf_pois['poi_type'] = gdf_pois['amenity']
+
+print(f"Found {len(gdf_pois)} potential POI candidates (Fuel/Parking).")
