@@ -71,3 +71,57 @@ gdf_grid_demand = gdf_grid_demand.groupby('grid_id').agg({
 gdf_grid_demand['raw_demand'] = gdf_grid_demand['ev_demand'].fillna(0)
 
 print("Raw demand mapped to grid cells.")
+
+from scipy.ndimage import convolve
+
+def apply_wna_smoothing(gdf_grid, demand_column, grid_size=100, kernel_radius_cells=1):
+    """
+    Applies a distance-weighted neighborhood average to grid demand.
+    kernel_radius_cells=1 means a 3x3 grid (300m x 300m area).
+    """
+    # 1. Convert GeoDataFrame to a 2D Numpy Array (Rasterize)
+    minx, miny, maxx, maxy = gdf_grid.total_bounds
+    cols = int((maxx - minx) / grid_size) + 1
+    rows = int((maxy - miny) / grid_size) + 1
+    
+    demand_array = np.zeros((rows, cols))
+    
+    for idx, row in gdf_grid.iterrows():
+        # Calculate array index for the grid cell
+        col_idx = int((row.geometry.centroid.x - minx) / grid_size)
+        row_idx = int((maxy - row.geometry.centroid.y) / grid_size) # Y is inverted in arrays
+        if 0 <= row_idx < rows and 0 <= col_idx < cols:
+            demand_array[row_idx, col_idx] = row[demand_column]
+            
+    # 2. Create the Distance-Weighted Kernel (Trinidad Equation 4 concept)
+    # Center cell has distance 0, adjacent has distance 1 (representing 100m), diagonal ~1.4
+    size = 2 * kernel_radius_cells + 1
+    kernel = np.zeros((size, size))
+    center = kernel_radius_cells
+    
+    for i in range(size):
+        for j in range(size):
+            distance_cells = np.sqrt((i - center)**2 + (j - center)**2)
+            # d_jk in the formula. Using kappa=2 for distance decay
+            if distance_cells == 0:
+                kernel[i, j] = 1.0 
+            else:
+                kernel[i, j] = 1.0 / (1 + distance_cells)**2 
+                
+    kernel = kernel / kernel.sum() # Normalize
+
+    # 3. Apply Convolution (Smooth the array)
+    smoothed_array = convolve(demand_array, kernel, mode='constant', cval=0.0)
+    
+    # 4. Map the smoothed array back to the GeoDataFrame
+    smoothed_demand = []
+    for idx, row in gdf_grid.iterrows():
+        col_idx = int((row.geometry.centroid.x - minx) / grid_size)
+        row_idx = int((maxy - row.geometry.centroid.y) / grid_size)
+        smoothed_demand.append(smoothed_array[row_idx, col_idx])
+        
+    gdf_grid['smoothed_demand'] = smoothed_demand
+    return gdf_grid
+
+gdf_grid = apply_wna_smoothing(gdf_grid_demand, 'raw_demand')
+print("Applied Weighted Neighborhood Average. Demand is now spatially continuous.")
