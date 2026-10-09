@@ -73,3 +73,21 @@ gdf_flood_risk = gdf_water.buffer(flood_buffer_distance).unary_union
 gdf_flood_risk = gpd.GeoDataFrame(geometry=[gdf_flood_risk], crs='EPSG:32644', columns=['flood_zone'])
 
 print("Flood risk exclusion zone created (50m buffer from water bodies).")
+
+print("Calculating Betweenness Centrality... (This may take 1-2 minutes)")
+
+# Calculate betweenness centrality on the projected graph
+# We normalize by edge count to make scores comparable
+bc = nx.betweenness_centrality(G_proj, normalized=True, weight='length')
+
+# Add these scores back to our nodes GeoDataFrame
+gdf_nodes['betweenness'] = gdf_nodes.index.map(bc)
+
+# Identify the top 5% of nodes by traffic importance
+top_5_percent_threshold = gdf_nodes['betweenness'].quantile(0.95)
+
+# Create a new GeoDataFrame for these high-traffic candidate nodes
+gdf_traffic_candidates = gdf_nodes[gdf_nodes['betweenness'] >= top_5_percent_threshold].copy()
+gdf_traffic_candidates['candidate_source'] = 'Traffic_Centrality'
+
+print(f"Identified {len(gdf_traffic_candidates)} high-traffic intersection candidates.")
