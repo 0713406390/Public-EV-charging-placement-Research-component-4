@@ -153,3 +153,36 @@ gdf_final_grid.loc[mask_veto, 'grid_feasibility'] = 0
 gdf_final_grid.loc[gdf_final_grid['risk_zone'] == 'Amber', 'grid_feasibility'] = 0.5 
 
 print(f"Applied Grid Constraints. {len(gdf_final_grid[gdf_final_grid['grid_feasibility']==0])} cells vetoed.")
+
+fig, ax = plt.subplots(figsize=(14, 10))
+
+# 1. Plot the Smoothed Demand Heatmap
+gdf_final_grid.plot(
+    ax=ax, 
+    column='smoothed_demand', 
+    cmap='YlOrRd', 
+    legend=True,
+    legend_kwds={'label': 'Smoothed EV Charging Demand (WNA)', 'shrink': 0.6},
+    alpha=0.8
+)
+
+# 2. Plot the Vetoed Grid Cells (Hard Black outlines to show constraints)
+vetoed_cells = gdf_final_grid[gdf_final_grid['grid_feasibility'] == 0]
+vetoed_cells.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=2, label='Grid Veto Zone (Red/Orange)')
+
+# 3. Plot Phase 1 Candidate Nodes to show they are waiting in the wings
+gdf_candidates = gpd.read_file("phase1_candidates_colombo.geojson")
+gdf_candidates.plot(ax=ax, color='cyan', markersize=10, label='Phase 1 Candidates', zorder=5)
+
+# Formatting
+ctx.add_basemap(ax, crs=gdf_final_grid.crs.to_string(), source=ctx.providers.CartoDB.Positron, alpha=0.5)
+ax.set_title("Phase 2 Output: Spatial Integration of Demand, Grid Constraints, & Candidates", fontsize=14)
+ax.legend(fontsize=11)
+ax.axis('off')
+
+plt.savefig("Phase2_Spatial_Integration_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Save this masterpiece for Phase 3!
+gdf_final_grid.to_file("phase2_integrated_grid.geojson", driver="GeoJSON")
+print("Phase 2 Complete. Grid saved for Phase 3 Optimization.")
