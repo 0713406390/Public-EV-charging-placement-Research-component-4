@@ -125,3 +125,31 @@ def apply_wna_smoothing(gdf_grid, demand_column, grid_size=100, kernel_radius_ce
 
 gdf_grid = apply_wna_smoothing(gdf_grid_demand, 'raw_demand')
 print("Applied Weighted Neighborhood Average. Demand is now spatially continuous.")
+
+# === REPLACE THIS BLOCK WITH YOUR TEAMMATE'S DATA ===
+# Simulating Component 3 Grid Risk Polygons (Substation boundaries)
+# Let's create a fake "Red Zone" polygon in the middle of Pettah (Col 11)
+from shapely.geometry import box
+fake_red_zone = box(375000, 344500, 376000, 345000) # Random coords in Col 11 area
+gdf_grid_risk = gpd.GeoDataFrame({
+    'risk_zone': ['Red'],
+    'geometry': [fake_red_zone]
+}, crs='EPSG:32644')
+# === END REPLACE BLOCK ===
+
+# 1. Spatial Join: Which grid cells fall inside a risk zone?
+gdf_final_grid = gpd.sjoin(gdf_grid, gdf_grid_risk, how='left', predicate='intersects')
+
+# 2. Initialize Grid Feasibility to 1 (Feasible)
+gdf_final_grid['grid_feasibility'] = 1
+
+# 3. Apply the Hard Constraint (TAF Novelty #1)
+# If the cell intersects an Orange or Red zone, feasibility becomes 0 (Vetoed)
+mask_veto = gdf_final_grid['risk_zone'].isin(['Orange', 'Red'])
+gdf_final_grid.loc[mask_veto, 'grid_feasibility'] = 0
+
+# Optional but recommended: Also apply a small buffer penalty for 'Amber' zones 
+# (Not a hard veto, but reduces the score. We will use this in Phase 3).
+gdf_final_grid.loc[gdf_final_grid['risk_zone'] == 'Amber', 'grid_feasibility'] = 0.5 
+
+print(f"Applied Grid Constraints. {len(gdf_final_grid[gdf_final_grid['grid_feasibility']==0])} cells vetoed.")
