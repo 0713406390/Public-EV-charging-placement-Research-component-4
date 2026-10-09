@@ -53,3 +53,23 @@ gdf_pois['name'] = gdf_pois['name'].fillna('Unknown POI')
 gdf_pois['poi_type'] = gdf_pois['amenity']
 
 print(f"Found {len(gdf_pois)} potential POI candidates (Fuel/Parking).")
+
+from shapely.geometry import Point
+import numpy as np
+
+
+print("Extracting water bodies (rivers, canals) for flood risk proxy...")
+tags_water = {'natural': ['water', 'wetland'], 'waterway': ['river', 'canal']}
+gdf_water = ox.features_from_polygon(study_area_boundary, tags=tags_water)
+
+# Keep only polygons and linestrings
+gdf_water = gdf_water[gdf_water.geometry.type.isin(['Polygon', 'MultiPolygon', 'LineString'])]
+gdf_water = gdf_water.to_crs('EPSG:32644')
+
+# Create a buffer of 50 meters around water bodies to represent "High Flood Risk Zones"
+# (In Colombo, canals like St. Sebastian Canal flood heavily into adjacent streets)
+flood_buffer_distance = 50 
+gdf_flood_risk = gdf_water.buffer(flood_buffer_distance).unary_union
+gdf_flood_risk = gpd.GeoDataFrame(geometry=[gdf_flood_risk], crs='EPSG:32644', columns=['flood_zone'])
+
+print("Flood risk exclusion zone created (50m buffer from water bodies).")
