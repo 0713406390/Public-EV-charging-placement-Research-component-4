@@ -2,6 +2,7 @@ import osmnx as ox
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
+import pandas as pd
 
 # Define the specific areas for your study
 # OSMnx uses these names to fetch boundaries
@@ -91,3 +92,64 @@ gdf_traffic_candidates = gdf_nodes[gdf_nodes['betweenness'] >= top_5_percent_thr
 gdf_traffic_candidates['candidate_source'] = 'Traffic_Centrality'
 
 print(f"Identified {len(gdf_traffic_candidates)} high-traffic intersection candidates.")
+
+
+# 1. Merge the two candidate sources
+# We convert POIs to the same column structure for merging
+gdf_pois_candidates = gdf_pois[['geometry', 'name', 'poi_type']].copy()
+gdf_pois_candidates = gdf_pois_candidates.rename(columns={'poi_type': 'candidate_source'})
+gdf_pois_candidates['betweenness'] = np.nan # POIs don't have a centrality score yet
+
+# Combine both GeoDataFrames
+gdf_all_candidates = gpd.GeoDataFrame(
+    pd.concat([gdf_traffic_candidates, gdf_pois_candidates], ignore_index=True),
+    crs='EPSG:32644'
+)
+
+print(f"Total combined candidates before filtering: {len(gdf_all_candidates)}")
+
+# 2. Apply Flood Exclusion (The Hard Constraint)
+# We use a spatial join to see which candidates fall INSIDE the flood risk polygon
+candidates_in_flood = gpd.sjoin(gdf_all_candidates, gdf_flood_risk, how='inner', predicate='intersects')
+
+# Get the IDs of candidates that are in the flood zone
+flood_victim_ids = candidates_in_flood.index.unique()
+
+# Filter them OUT
+gdf_final_phase1_candidates = gdf_all_candidates[~gdf_all_candidates.index.isin(flood_victim_ids)]
+
+print(f"Total SAFE candidates after flood exclusion: {len(gdf_final_phase1_candidates)}")
+print(f"Removed {len(flood_victim_ids)} candidates due to high flood risk.")
+
+import contextily as ctx
+
+fig, ax = plt.subplots(figsize=(12, 12))
+
+# 1. Plot the base road network
+gdf_edges.plot(ax=ax, linewidth=0.5, color='gray', alpha=0.5)
+
+# 2. Plot the Flood Risk Zones (In Red/Transparent)
+gdf_flood_risk.plot(ax=ax, color='red', alpha=0.2, label='High Flood Risk Zone (50m buffer)')
+
+# 3. Plot the FINAL SAFE Candidates
+# Color them by source type
+traffic_nodes = gdf_final_phase1_candidates[gdf_final_phase1_candidates['candidate_source'] == 'Traffic_Centrality']
+poi_nodes = gdf_final_phase1_candidates[gdf_final_phase1_candidates['candidate_source'] != 'Traffic_Centrality']
+
+traffic_nodes.plot(ax=ax, color='blue', markersize=15, label='High-Traffic Intersections (Novelty)', zorder=5)
+poi_nodes.plot(ax=ax, color='green', markersize=30, marker='s', label='Existing Fuel/Parking', zorder=5)
+
+# 4. Add basemap for context (requires internet)
+ctx.add_basemap(ax, crs=gdf_edges.crs.to_string(), source=ctx.providers.CartoDB.Positron)
+
+# Formatting
+ax.set_title("Phase 1: EV Charging Candidate Nodes\nColombo 3, 4, 11 & 12 (Flood Exclusion Applied)", fontsize=16)
+ax.legend(fontsize=12)
+ax.axis('off')
+
+plt.savefig("Phase1_Candidate_Nodes_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Export to GeoJSON for Phase 2!
+gdf_final_phase1_candidates.to_file("phase1_candidates_colombo.geojson", driver="GeoJSON")
+print("Saved map and GeoJSON successfully!")
