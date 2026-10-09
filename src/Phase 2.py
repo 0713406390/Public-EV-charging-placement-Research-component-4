@@ -41,3 +41,33 @@ def create_fishnet(gdf_boundary, grid_size_meters=100):
 
 gdf_grid = create_fishnet(gdf_boundary, 100)
 print(f"Created {len(gdf_grid)} grid cells (100x100m) over the study area.")
+
+from shapely.geometry import Point
+
+# === REPLACE THIS BLOCK WITH YOUR TEAMMATE'S DATA ===
+# Simulating dasymetric demand points (e.g., 5000 EVs distributed across the area)
+np.random.seed(42)
+minx, miny, maxx, maxy = gdf_boundary.total_bounds
+random_x = np.random.uniform(minx, maxx, 5000)
+random_y = np.random.uniform(miny, maxy, 5000)
+gdf_demand_points = gpd.GeoDataFrame(
+    geometry=[Point(x, y) for x, y in zip(random_x, random_y)],
+    crs='EPSG:32644'
+)
+# Add a fake demand weight (e.g., some cars charge more than others based on Component 2)
+gdf_demand_points['ev_demand'] = np.random.randint(1, 5, len(gdf_demand_points))
+# === END REPLACE BLOCK ===
+
+# Spatial Join: Assign demand points to the 100x100m grid cells
+gdf_grid_demand = gpd.sjoin(gdf_grid, gdf_demand_points, how='left', predicate='contains')
+
+# Aggregate to get total raw demand per grid cell
+gdf_grid_demand = gdf_grid_demand.groupby('grid_id').agg({
+    'geometry': 'first',
+    'ev_demand': 'sum'
+}).reset_index()
+
+# Fill NaNs (cells with zero demand) with 0
+gdf_grid_demand['raw_demand'] = gdf_grid_demand['ev_demand'].fillna(0)
+
+print("Raw demand mapped to grid cells.")
