@@ -85,3 +85,32 @@ def load_study_polygon():
     """Read the dissolved study-area polygon saved by Step 1."""
     gdf = gpd.read_file(F_STUDY_POLYGON)
     return dissolve_geometry(gdf)
+
+    # ==================================================================
+# PHASE 2 settings
+# ==================================================================
+GRID_SIZE_M       = 100   # fishnet cell size (metres)
+WNA_KERNEL_RADIUS = 1     # 1 -> 3x3 kernel (300m x 300m neighbourhood)
+WNA_KAPPA         = 2.0   # distance-decay strength (Trinidad Eq. 4)
+
+# Placeholder simulation — used ONLY if the real teammate files are absent
+N_SIM_DEMAND_POINTS = 5000
+
+# Risk severity -> feasibility multiplier (the hard constraint)
+RISK_SEVERITY = {"Red": 0.0, "Orange": 0.0, "Amber": 0.5}
+
+# ------------------------------------------------------------------
+# DROP-IN FILES: if these exist, the pipeline uses them automatically
+# instead of the simulations. No code changes needed.
+# ------------------------------------------------------------------
+F_DEMAND_REAL = DATA_DIR / "demand_points_real.geojson"    # needs 'ev_demand' column
+F_RISK_REAL   = DATA_DIR / "grid_risk_zones_real.geojson"  # needs 'risk_zone' column (Red/Orange/Amber)
+
+# Step outputs
+F_GRID_CELLS  = DATA_DIR / "phase2_grid_cells.geojson"           # Step 8 out
+F_DEMAND_PTS  = DATA_DIR / "phase2_demand_points.geojson"        # Step 9 out
+F_GRID_RAW    = DATA_DIR / "phase2_grid_raw_demand.geojson"      # Step 10 out
+F_GRID_SMOOTH = DATA_DIR / "phase2_grid_smoothed_demand.geojson" # Step 11 out
+F_RISK_ZONES  = DATA_DIR / "phase2_grid_risk_zones.geojson"      # Step 12 out
+F_GRID_FINAL  = DATA_DIR / "phase2_integrated_grid.geojson"      # Step 13 out
+F_MAP_P2      = DATA_DIR / "Phase2_Spatial_Integration_Map.png"  # Step 14 out
