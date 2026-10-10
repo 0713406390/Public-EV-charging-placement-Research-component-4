@@ -152,3 +152,41 @@ print(gdf_final_placements[['Phase', 'Recommended_Capacity', 'Suitability_Score'
 # SAVE FOR DASHBOARD INTEGRATION
 gdf_final_placements.to_file("component4_final_phased_plan.geojson", driver="GeoJSON")
 print("\nFinal phased rollout plan exported!")
+
+fig, ax = plt.subplots(figsize=(14, 11))
+
+# 1. Background Demand Heatmap
+gdf_grid.plot(ax=ax, column='smoothed_demand', cmap='YlOrRd', alpha=0.4, legend=False)
+
+# 2. Define colors for phases
+phase_colors = {
+    "Phase_1_2027": "#2ca02c", # Green
+    "Phase_2_2030": "#ff7f0e", # Orange
+    "Phase_3_2035": "#d62728"  # Red
+}
+
+# 3. Plot each phase with increasing marker sizes to show growth
+for phase, color in phase_colors.items():
+    subset = gdf_final_placements[gdf_final_placements['Phase'] == phase]
+    ax.scatter(
+        subset.geometry.x, subset.geometry.y,
+        c=color, s=200, label=f"{phase} ({subset['Recommended_Capacity'].iloc[0]})",
+        edgecolor='black', linewidth=1.5, zorder=5
+    )
+    # Add text labels
+    for x, y, name in zip(subset.geometry.x, subset.geometry.y, subset.index):
+        ax.text(x, y + 80, f"S{name}", fontsize=8, ha='center', fontweight='bold', color=color)
+
+# 4. Add 500m Exclusion Circles (for just Phase 1 to prove the constraint works)
+phase1_pts = gdf_final_placements[gdf_final_placements['Phase'] == "Phase_1_2027"]
+for geom in phase1_pts.geometry:
+    ax.add_patch(plt.Circle((geom.x, geom.y), 500, color='green', alpha=0.1, linestyle='--'))
+
+# Formatting
+ctx.add_basemap(ax, crs=gdf_final_placements.crs.to_string(), source=ctx.providers.CartoDB.Positron, alpha=0.5)
+ax.set_title("Component 4 Output: Prioritized, Phased EV Charging Network\nColombo 3, 4, 11 & 12", fontsize=16, fontweight='bold')
+ax.legend(fontsize=11, loc='lower left', title="Deployment Strategy")
+ax.axis('off')
+
+plt.savefig("Component4_Final_Thesis_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
