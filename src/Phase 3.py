@@ -62,3 +62,32 @@ gdf_score_data = gdf_score_data.rename(columns={'smoothed_demand': 'local_demand
 
 # Fill any NaNs (if a point somehow fell just outside a grid cell) with 0
 gdf_score_data['local_demand'] = gdf_score_data['local_demand'].fillna(0)
+
+def min_max_normalize(series):
+    """Scales data strictly between 0 and 1"""
+    min_val = series.min()
+    max_val = series.max()
+    return (series - min_val) / (max_val - min_val)
+
+# 1. Normalize Demand (Higher is better -> 0 to 1)
+gdf_score_data['norm_demand'] = min_max_normalize(gdf_score_data['local_demand'])
+
+# 2. Normalize Traffic / Betweenness (Higher is better -> 0 to 1)
+# Fill NaN betweenness (from POIs) with 0 before normalizing
+gdf_score_data['betweenness'] = gdf_score_data['betweenness'].fillna(0)
+gdf_score_data['norm_traffic'] = min_max_normalize(gdf_score_data['betweenness'])
+
+# 3. Normalize Grid Proximity (Closer is better, but JRC says >50m is bad)
+# We will invert this: Score = 1 if dist <= 50m. Score decays to 0 if dist > 200m.
+def grid_proximity_score(distance):
+    if distance <= 50:
+        return 1.0
+    elif distance >= 200:
+        return 0.0
+    else:
+        # Linear decay between 50m and 200m
+        return 1 - ((distance - 50) / 150)
+
+gdf_score_data['norm_grid_prox'] = gdf_score_data['dist_to_grid_m'].apply(grid_proximity_score)
+
+print("All criteria normalized to 0-1 scale.")
