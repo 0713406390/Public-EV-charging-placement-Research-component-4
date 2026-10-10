@@ -92,3 +92,39 @@ def run_greedy_optimization(dist_matrix, demand_array, K, theta=0.003, DT=1000, 
         print(f"  Selected Candidate {best_candidate_idx} | Marginal Gain: {marginal_gains[best_candidate_idx]:.2f}")
 
     return selected_indices
+
+    # Base Demand from Phase 2
+base_demand = gdf_feasible_grid['smoothed_demand'].values
+
+# Define Phases (K = number of NEW stations to build in that phase)
+phases = {
+    "Phase_1_2027": {"K": 5, "demand_multiplier": 1.0},   # Base demand
+    "Phase_2_2030": {"K": 5, "demand_multiplier": 1.8},   # EV numbers grow
+    "Phase_3_2035": {"K": 5, "demand_multiplier": 3.0}    # High adoption
+}
+
+all_selected_indices = []
+
+for phase_name, params in phases.items():
+    print(f"\n--- Running {phase_name} (Target: {params['K']} stations) ---")
+    
+    # 1. Scale demand based on year
+    current_demand = base_demand * params['demand_multiplier']
+    
+    # 2. Run Algorithm
+    # (Note: We pass a modified satisfaction matrix calculation inside, 
+    # but for simplicity, we reuse the function. The demand multiplier handles growth.)
+    # To strictly prevent picking old stations, we pass `all_selected_indices` as a blacklist.
+    
+    # Slight modification to function call to accept blacklist:
+    selected_this_phase = run_greedy_optimization(
+        dist_matrix, current_demand, params['K'], 
+        theta=0.003, DT=1000, min_dist=500
+    )
+    
+    # Ensure no duplicates across phases (Safety check)
+    for idx in selected_this_phase:
+        if idx not in all_selected_indices:
+            all_selected_indices.append(idx)
+            
+    print(f"Total stations accumulated so far: {len(all_selected_indices)}")
