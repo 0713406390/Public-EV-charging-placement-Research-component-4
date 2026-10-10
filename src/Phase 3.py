@@ -91,3 +91,21 @@ def grid_proximity_score(distance):
 gdf_score_data['norm_grid_prox'] = gdf_score_data['dist_to_grid_m'].apply(grid_proximity_score)
 
 print("All criteria normalized to 0-1 scale.")
+
+# Define Weights
+W1_DEMAND = 0.50
+W2_TRAFFIC = 0.30
+W3_GRID_PROX = 0.20
+
+# Apply the Weighted Sum Model (Map Algebra)
+gdf_score_data['Suitability_Score'] = (
+    (W1_DEMAND * gdf_score_data['norm_demand']) +
+    (W2_TRAFFIC * gdf_score_data['norm_traffic']) +
+    (W3_GRID_PROX * gdf_score_data['norm_grid_prox'])
+)
+
+# Sort to see the best locations
+gdf_score_data = gdf_score_data.sort_values(by='Suitability_Score', ascending=False)
+
+print("Top 5 Candidate Locations for EV Charging:")
+print(gdf_score_data[['name', 'candidate_source', 'Suitability_Score', 'dist_to_grid_m', 'local_demand']].head())
