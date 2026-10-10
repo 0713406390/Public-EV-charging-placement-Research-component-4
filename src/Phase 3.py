@@ -109,3 +109,39 @@ gdf_score_data = gdf_score_data.sort_values(by='Suitability_Score', ascending=Fa
 
 print("Top 5 Candidate Locations for EV Charging:")
 print(gdf_score_data[['name', 'candidate_source', 'Suitability_Score', 'dist_to_grid_m', 'local_demand']].head())
+
+fig, ax = plt.subplots(figsize=(14, 10))
+
+# Plot the base grid to show context
+gdf_grid.plot(ax=ax, facecolor='none', edgecolor='lightgray', linewidth=0.2, alpha=0.5)
+
+# Plot Vetoed Grid Zones in the background for context
+vetoed_cells.plot(ax=ax, facecolor='red', alpha=0.15, label='Vetoed Grid Zones (Phase 2)')
+
+# Plot the OSM Power Lines
+gdf_power.plot(ax=ax, color='brown', linewidth=1, alpha=0.6, label='Power Distribution Lines')
+
+# Plot the final scored candidates
+# Size based on demand, Color based on final score
+scatter = gdf_score_data.plot(
+    ax=ax,
+    markersize=gdf_score_data['norm_demand'] * 100 + 20, # Scale marker size
+    column='Suitability_Score',
+    cmap='RdYlGn', # Red=Low score, Green=High score
+    legend=True,
+    legend_kwds={'label': 'Final Suitability Score ($S_i$)', 'shrink': 0.6},
+    alpha=0.85,
+    zorder=5
+)
+
+# Add basemap
+ctx.add_basemap(ax, crs=gdf_score_data.crs.to_string(), source=ctx.providers.CartoDB.Positron, alpha=0.4)
+ax.set_title("Phase 3: Multi-Criteria Suitability Scoring for EVCS Candidates\nColombo 3, 4, 11 & 12", fontsize=14)
+ax.legend(fontsize=10, loc='lower left')
+ax.axis('off')
+
+plt.savefig("Phase3_Suitability_Scoring_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Save for Phase 4!
+gdf_score_data.to_file("phase3_scored_candidates.geojson", driver="GeoJSON")
