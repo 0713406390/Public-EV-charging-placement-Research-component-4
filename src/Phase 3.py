@@ -51,3 +51,14 @@ gdf_survivors['dist_to_grid_m'] = gdf_survivors.geometry.apply(
 )
 
 print(f"Power proximity calculated. Min dist: {gdf_survivors['dist_to_grid_m'].min():.1f}m | Max dist: {gdf_survivors['dist_to_grid_m'].max():.1f}m")
+
+# Spatial Join: Points (candidates) inside Polygons (grid cells)
+gdf_score_data = gpd.sjoin(gdf_survivors, gdf_grid[['grid_id', 'smoothed_demand', 'geometry']], 
+                           how='left', predicate='intersects')
+
+# Drop duplicate columns created by the join
+gdf_score_data = gdf_score_data.drop(columns=['geometry_right'])
+gdf_score_data = gdf_score_data.rename(columns={'smoothed_demand': 'local_demand'})
+
+# Fill any NaNs (if a point somehow fell just outside a grid cell) with 0
+gdf_score_data['local_demand'] = gdf_score_data['local_demand'].fillna(0)
