@@ -28,3 +28,26 @@ gdf_survivors = gdf_candidates[~gdf_candidates.index.isin(vetoed_candidate_ids)]
 print(f"Started with {len(gdf_candidates)} candidates.")
 print(f"Vetoed {len(vetoed_candidate_ids)} candidates due to Red/Orange Grid Risk.")
 print(f"Proceeding to score {len(gdf_survivors)} surviving candidates.")
+
+print("Downloading power line infrastructure from OpenStreetMap...")
+# Recreate boundary for OSMnx query
+places = ["Colombo 03, Colombo, Sri Lanka", "Colombo 04, Colombo, Sri Lanka", 
+          "Colombo 11, Colombo, Sri Lanka", "Colombo 12, Colombo, Sri Lanka"]
+boundary = ox.geocode_to_gdf(places).unary_union
+
+# Get power lines ('power' == 'line' represents medium/low voltage distribution)
+gdf_power = ox.features_from_polygon(boundary, tags={'power': 'line'})
+# Keep only linestrings, project to meters
+gdf_power = gdf_power[gdf_power.geometry.type.isin(['LineString', 'MultiLineString'])]
+gdf_power = gdf_power.to_crs('EPSG:32644')
+
+# Unify all power lines into one giant geometry for fast distance calculation
+power_lines_union = gdf_power.unary_union
+
+# Calculate distance from every surviving candidate to the nearest power line
+# .distance() in GeoPandas automatically calculates minimum distance to a complex geometry
+gdf_survivors['dist_to_grid_m'] = gdf_survivors.geometry.apply(
+    lambda x: x.distance(power_lines_union)
+)
+
+print(f"Power proximity calculated. Min dist: {gdf_survivors['dist_to_grid_m'].min():.1f}m | Max dist: {gdf_survivors['dist_to_grid_m'].max():.1f}m")
