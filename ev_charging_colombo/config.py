@@ -114,3 +114,39 @@ F_GRID_SMOOTH = DATA_DIR / "phase2_grid_smoothed_demand.geojson" # Step 11 out
 F_RISK_ZONES  = DATA_DIR / "phase2_grid_risk_zones.geojson"      # Step 12 out
 F_GRID_FINAL  = DATA_DIR / "phase2_integrated_grid.geojson"      # Step 13 out
 F_MAP_P2      = DATA_DIR / "Phase2_Spatial_Integration_Map.png"  # Step 14 out
+
+# ==================================================================
+# PHASE 3 settings
+# ==================================================================
+TAGS_POWER = {"power": "line"}   # OSM power distribution lines
+
+# Grid-proximity scoring (JRC guidance: <=50 m ideal, >=200 m worthless)
+GRID_PROX_FULL_M = 50
+GRID_PROX_ZERO_M = 200
+
+# Multi-criteria weights (weighted-sum model — keep the sum = 1.0)
+W_DEMAND    = 0.50
+W_TRAFFIC   = 0.30
+W_GRID_PROX = 0.20
+
+
+def sanitize_for_geojson(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """GeoJSON cannot store list/dict values -> stringify such columns."""
+    gdf = gdf.copy()
+    for col in gdf.columns:
+        if col != "geometry" and gdf[col].map(
+            lambda v: isinstance(v, (list, tuple, dict))
+        ).any():
+            gdf[col] = gdf[col].astype(str)
+    return gdf
+
+
+# ------------------------------------------------------------------
+# File names (all inside ./data)
+# ------------------------------------------------------------------
+F_POWER       = DATA_DIR / "phase3_power_lines.geojson"              # Step 15 out
+F_SURVIVORS   = DATA_DIR / "phase3_surviving_candidates.geojson"     # Step 16 out
+F_POWER_DIST  = DATA_DIR / "phase3_candidates_power_dist.geojson"    # Step 17 out
+F_WITH_DEMAND = DATA_DIR / "phase3_candidates_with_demand.geojson"   # Step 18 out
+F_SCORED      = DATA_DIR / "phase3_scored_candidates.geojson"        # Step 19 out
+F_MAP_P3      = DATA_DIR / "Phase3_Suitability_Scoring_Map.png"      # Step 20 out
