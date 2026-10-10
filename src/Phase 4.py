@@ -128,3 +128,27 @@ for phase_name, params in phases.items():
             all_selected_indices.append(idx)
             
     print(f"Total stations accumulated so far: {len(all_selected_indices)}")
+
+    # Extract the geometry and data for ONLY the final selected stations
+gdf_final_placements = gdf_candidates.iloc[all_selected_indices].copy()
+
+# Determine which phase each station belongs to for coloring
+phase_assignment = []
+accumulated = 0
+for phase_name, params in phases.items():
+    k = params['K']
+    phase_assignment.extend([phase_name] * k)
+    accumulated += k
+
+gdf_final_placements['Phase'] = phase_assignment
+
+# Assign recommended capacity based on Phase (from Component 2 logic)
+# Early phases might get slower AC chargers, later phases get DC Fast
+capacity_map = {"Phase_1_2027": "22kW AC", "Phase_2_2030": "50kW DC", "Phase_3_2035": "150kW DC"}
+gdf_final_placements['Recommended_Capacity'] = gdf_final_placements['Phase'].map(capacity_map)
+
+print(gdf_final_placements[['Phase', 'Recommended_Capacity', 'Suitability_Score']])
+
+# SAVE FOR DASHBOARD INTEGRATION
+gdf_final_placements.to_file("component4_final_phased_plan.geojson", driver="GeoJSON")
+print("\nFinal phased rollout plan exported!")
