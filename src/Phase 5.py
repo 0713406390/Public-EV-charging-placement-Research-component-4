@@ -116,3 +116,115 @@ gdf_final_plan['Recommended_Capacity'] = gdf_final_plan['Deployment_Phase'].map(
 # Save the ultimate output
 gdf_final_plan.to_file("FINAL_Phased_EV_Plan_Colombo.geojson", driver="GeoJSON")
 print("\nSuccess! Final phased plan exported.")
+
+import matplotlib.pyplot as plt
+import contextily as ctx
+from matplotlib.lines import Line2D
+
+fig, ax = plt.subplots(figsize=(15, 12))
+
+# Background: Demand Heatmap
+gdf_grid.plot(ax=ax, column='smoothed_demand', cmap='Blues', alpha=0.4, legend=False)
+
+# Plot Vetoed Zones for context
+vetoed_cells = gdf_grid[gdf_grid['grid_feasibility'] == 0]
+vetoed_cells.plot(ax=ax, facecolor='red', alpha=0.1, label='Grid/Flood Vetoed Zones')
+
+# Colors and settings for phases
+phase_styles = {
+    "Phase_1_2027": {"color": "#2ca02c", "marker": "o", "size": 200}, # Green Circles
+    "Phase_2_2030": {"color": "#ff7f0e", "marker": "s", "size": 250}, # Orange Squares
+    "Phase_3_2035": {"color": "#d62728", "marker": "^", "size": 300}  # Red Triangles
+}
+
+# Plot each phase
+for phase, style in phase_styles.items():
+    subset = gdf_final_plan[gdf_final_plan['Deployment_Phase'] == phase]
+    ax.scatter(
+        subset.geometry.x, subset.geometry.y,
+        c=style['color'], s=style['size'], marker=style['marker'],
+        edgecolor='black', linewidth=1.5, zorder=5
+    )
+    # Add text labels (e.g., "P1-1", "P1-2" for Phase 1 Station 1, etc.)
+    for i, (x, y) in enumerate(zip(subset.geometry.x, subset.geometry.y)):
+        label = phase.split("_")[1][:4] + "-" + str(i+1) # e.g., "2027-1"
+        ax.text(x, y + 90, label, fontsize=7, ha='center', fontweight='bold', color=style['color'])
+
+# Custom Legend
+legend_elements = [
+    Line2D([0], [0], marker='o', color='w', label='Phase 1 (2027) - Early Adopters', markerfacecolor='#2ca02c', markersize=12),
+    Line2D([0], [0], marker='s', color='w', label='Phase 2 (2030) - Commercial Expansion', markerfacecolor='#ff7f0e', markersize=12),
+    Line2D([0], [0], marker='^', color='w', label='Phase 3 (2035) - Network Maturity', markerfacecolor='#d62728', markersize=12),
+    Line2D([0], [0], linestyle='--', color='green', alpha=0.5, label='500m Exclusion Zone (Phase 1 Example)')
+]
+
+# Draw 500m circles around JUST Phase 1 to prove the constraint works visually
+phase1_pts = gdf_final_plan[gdf_final_plan['Deployment_Phase'] == "Phase_1_2027"]
+for geom in phase1_pts.geometry:
+    circle = plt.Circle((geom.x, geom.y), 500, color='green', fill=False, linestyle='--', alpha=0.5)
+    ax.add_patch(circle)
+
+# Final Touches
+ctx.add_basemap(ax, crs=gdf_final_plan.crs.to_string(), source=ctx.providers.CartoDB.Positron, alpha=0.5)
+ax.legend(handles=legend_elements, loc='lower left', fontsize=10, title="Deployment Strategy")
+ax.set_title("Temporal Evolution of EV Charging Infrastructure\nColombo 3, 4, 11 & 12 (2027-2035)", fontsize=16, fontweight='bold')
+ax.axis('off')
+
+plt.savefig("FINAL_Thesis_Evolution_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+import matplotlib.pyplot as plt
+import contextily as ctx
+from matplotlib.lines import Line2D
+
+fig, ax = plt.subplots(figsize=(15, 12))
+
+# Background: Demand Heatmap
+gdf_grid.plot(ax=ax, column='smoothed_demand', cmap='Blues', alpha=0.4, legend=False)
+
+# Plot Vetoed Zones for context
+vetoed_cells = gdf_grid[gdf_grid['grid_feasibility'] == 0]
+vetoed_cells.plot(ax=ax, facecolor='red', alpha=0.1, label='Grid/Flood Vetoed Zones')
+
+# Colors and settings for phases
+phase_styles = {
+    "Phase_1_2027": {"color": "#2ca02c", "marker": "o", "size": 200}, # Green Circles
+    "Phase_2_2030": {"color": "#ff7f0e", "marker": "s", "size": 250}, # Orange Squares
+    "Phase_3_2035": {"color": "#d62728", "marker": "^", "size": 300}  # Red Triangles
+}
+
+# Plot each phase
+for phase, style in phase_styles.items():
+    subset = gdf_final_plan[gdf_final_plan['Deployment_Phase'] == phase]
+    ax.scatter(
+        subset.geometry.x, subset.geometry.y,
+        c=style['color'], s=style['size'], marker=style['marker'],
+        edgecolor='black', linewidth=1.5, zorder=5
+    )
+    # Add text labels (e.g., "P1-1", "P1-2" for Phase 1 Station 1, etc.)
+    for i, (x, y) in enumerate(zip(subset.geometry.x, subset.geometry.y)):
+        label = phase.split("_")[1][:4] + "-" + str(i+1) # e.g., "2027-1"
+        ax.text(x, y + 90, label, fontsize=7, ha='center', fontweight='bold', color=style['color'])
+
+# Custom Legend
+legend_elements = [
+    Line2D([0], [0], marker='o', color='w', label='Phase 1 (2027) - Early Adopters', markerfacecolor='#2ca02c', markersize=12),
+    Line2D([0], [0], marker='s', color='w', label='Phase 2 (2030) - Commercial Expansion', markerfacecolor='#ff7f0e', markersize=12),
+    Line2D([0], [0], marker='^', color='w', label='Phase 3 (2035) - Network Maturity', markerfacecolor='#d62728', markersize=12),
+    Line2D([0], [0], linestyle='--', color='green', alpha=0.5, label='500m Exclusion Zone (Phase 1 Example)')
+]
+
+# Draw 500m circles around JUST Phase 1 to prove the constraint works visually
+phase1_pts = gdf_final_plan[gdf_final_plan['Deployment_Phase'] == "Phase_1_2027"]
+for geom in phase1_pts.geometry:
+    circle = plt.Circle((geom.x, geom.y), 500, color='green', fill=False, linestyle='--', alpha=0.5)
+    ax.add_patch(circle)
+
+# Final Touches
+ctx.add_basemap(ax, crs=gdf_final_plan.crs.to_string(), source=ctx.providers.CartoDB.Positron, alpha=0.5)
+ax.legend(handles=legend_elements, loc='lower left', fontsize=10, title="Deployment Strategy")
+ax.set_title("Temporal Evolution of EV Charging Infrastructure\nColombo 3, 4, 11 & 12 (2027-2035)", fontsize=16, fontweight='bold')
+ax.axis('off')
+
+plt.savefig("FINAL_Thesis_Evolution_Map.png", dpi=300, bbox_inches='tight')
+plt.show()
