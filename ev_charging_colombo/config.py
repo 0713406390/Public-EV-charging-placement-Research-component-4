@@ -152,34 +152,39 @@ F_SCORED      = DATA_DIR / "phase3_scored_candidates.geojson"        # Step 19 o
 F_MAP_P3      = DATA_DIR / "Phase3_Suitability_Scoring_Map.png"      # Step 20 out
 
 # ==================================================================
-# PHASE 4 settings (phased greedy set-cover optimization)
+# PHASE 4 settings (STATEFUL phased greedy set-cover optimization)
 # ==================================================================
-DT_M = 1000.0                 # service threshold (m): stations beyond this satisfy 0 demand
-THETA = 0.003                 # distance-decay coefficient: satisfaction = exp(-theta * d)
-MIN_STATION_SPACING_M = 500   # hard minimum distance between any two stations
+DT_M = 1000.0                 # service threshold (m): beyond this, satisfaction = 0
+THETA = 0.003                 # distance decay: satisfaction = exp(-theta * d)
+MIN_STATION_SPACING_M = 500   # hard minimum distance between ANY two stations
+                              # (enforced against ALL phases — strict stateful rule)
 
-# Should new stations in later phases also respect the 500 m spacing
-# relative to stations built in EARLIER phases? (recommended: True)
-SPACING_ACROSS_PHASES = True
-
-# Deployment schedule: K = number of NEW stations built in that phase
+# Deployment schedule: K = number of NEW stations, demand_mult = demand growth
 PHASES = {
-    "Phase_1_2027": {"K": 5, "demand_multiplier": 1.0},   # base demand
-    "Phase_2_2030": {"K": 5, "demand_multiplier": 1.8},   # EV numbers grow
-    "Phase_3_2035": {"K": 5, "demand_multiplier": 3.0},   # high adoption
+    "Phase_1_2027": {"K": 5,  "demand_mult": 1.0},   # early adoption
+    "Phase_2_2030": {"K": 10, "demand_mult": 2.2},   # growth spike
+    "Phase_3_2035": {"K": 15, "demand_mult": 4.5},   # maturity
 }
 
-# Recommended charger capacity per phase (Component 2 logic)
+# Charger capacity per phase (Component 2 logic)
 CAPACITY_MAP = {
-    "Phase_1_2027": "22kW AC",
-    "Phase_2_2030": "50kW DC",
-    "Phase_3_2035": "150kW DC",
+    "Phase_1_2027": "22kW AC / 50kW DC",
+    "Phase_2_2030": "150kW DC Fast",
+    "Phase_3_2035": "150kW+ DC Ultra-Fast",
+}
+
+# Map styling per phase (colour / marker / size grow with the phase)
+PHASE_STYLES = {
+    "Phase_1_2027": {"color": "#2ca02c", "marker": "o", "size": 200},  # circles
+    "Phase_2_2030": {"color": "#ff7f0e", "marker": "s", "size": 250},  # squares
+    "Phase_3_2035": {"color": "#d62728", "marker": "^", "size": 300},  # triangles
 }
 
 # ------------------------------------------------------------------
 # File names (all inside ./data)
 # ------------------------------------------------------------------
-F_DIST_MATRIX = DATA_DIR / "phase4_distance_matrix.npz"             # Step 21 out
-F_SELECTION   = DATA_DIR / "phase4_station_selection.csv"           # Step 22 out
-F_FINAL_PLAN  = DATA_DIR / "component4_final_phased_plan.geojson"   # Step 23 out
-F_MAP_P4      = DATA_DIR / "Component4_Final_Thesis_Map.png"        # Step 24 out
+F_DIST_MATRIX = DATA_DIR / "phase4_distance_matrix.npz"            # Step 21 out
+F_SELECTION   = DATA_DIR / "phase4_station_selection.csv"          # Step 22 out
+F_METRICS     = DATA_DIR / "phase4_deployment_metrics.csv"         # Step 22 out
+F_FINAL_PLAN  = DATA_DIR / "FINAL_Phased_EV_Plan_Colombo.geojson"  # Step 23 out
+F_MAP_P4      = DATA_DIR / "FINAL_Thesis_Evolution_Map.png"        # Step 24 out
