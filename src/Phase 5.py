@@ -89,3 +89,30 @@ for phase_name, config in phases_config.items():
     # Store results
     all_phases_results[phase_name] = selected_indices
     print(f"Total stations in network now: {len(selected_history_coords)}")
+
+    # Flatten the results into a single list of indices with their phase labels
+final_indices = []
+final_phases = []
+
+for phase_name, indices in all_phases_results.items():
+    final_indices.extend(indices)
+    final_phases.extend([phase_name] * len(indices))
+
+# Extract these from the original candidates GeoDataFrame
+gdf_final_plan = gdf_candidates.iloc[final_indices].copy()
+gdf_final_plan['Deployment_Phase'] = final_phases
+
+# Assign Charger Types based on Phase (Logical assumption for thesis)
+# Phase 1: AC slow/medium (workplaces/malls in Col 3/4)
+# Phase 2: DC Fast (commercial vans in Col 11)
+# Phase 3: Ultra-Fast / High-density DC
+capacity_mapping = {
+    "Phase_1_2027": "22kW AC / 50kW DC",
+    "Phase_2_2030": "150kW DC Fast",
+    "Phase_3_2035": "150kW+ DC Ultra-Fast"
+}
+gdf_final_plan['Recommended_Capacity'] = gdf_final_plan['Deployment_Phase'].map(capacity_mapping)
+
+# Save the ultimate output
+gdf_final_plan.to_file("FINAL_Phased_EV_Plan_Colombo.geojson", driver="GeoJSON")
+print("\nSuccess! Final phased plan exported.")
