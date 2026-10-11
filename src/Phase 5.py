@@ -51,3 +51,41 @@ def run_stateful_phase(dist_matrix, satisfaction_matrix, current_demand,
         print(f"  -> Selected Node {best_global_idx} | Marginal Gain: {marginal_gains[best_local_idx]:.2f}")
         
     return selected_this_phase, current_coverage, selected_history_coords
+
+    # Pre-calculate the satisfaction matrix once (Saves massive computation time)
+# Using theta=0.003 and DT=1000m as established
+theta = 0.003
+DT = 1000
+satisfaction_matrix = np.where(dist_matrix <= DT, np.exp(-theta * dist_matrix), 0.0)
+
+# Global State Variables
+base_demand = gdf_feasible_grid['smoothed_demand'].values
+current_coverage = np.zeros(len(base_demand)) # Starts at zero
+selected_history_coords = [] # Tracks (x,y) of ALL placed stations for 500m check
+
+# Define the Phases based on your TAF
+phases_config = {
+    "Phase_1_2027": {"K": 5, "demand_mult": 1.0},   # Early adoption
+    "Phase_2_2030": {"K": 10, "demand_mult": 2.2},  # Growth spike
+    "Phase_3_2035": {"K": 15, "demand_mult": 4.5}   # Maturity
+}
+
+all_phases_results = {}
+
+for phase_name, config in phases_config.items():
+    print(f"\n{'='*40}")
+    print(f"RUNNING {phase_name} | Target: {config['K']} NEW stations")
+    print(f"{'='*40}")
+    
+    # Scale demand for this specific year
+    phase_demand = base_demand * config['demand_mult']
+    
+    # Run the stateful algorithm
+    selected_indices, current_coverage, selected_history_coords = run_stateful_phase(
+        dist_matrix, satisfaction_matrix, phase_demand, current_coverage,
+        config['K'], min_dist=500, selected_history_coords=selected_history_coords
+    )
+    
+    # Store results
+    all_phases_results[phase_name] = selected_indices
+    print(f"Total stations in network now: {len(selected_history_coords)}")
