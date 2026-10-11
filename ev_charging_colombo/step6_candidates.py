@@ -37,7 +37,11 @@ def main(force: bool = False) -> None:
     gdf_pois["candidate_source"] = gdf_pois["poi_type"]
     gdf_pois["betweenness"] = float("nan")
 
-    # osmid as string in BOTH frames (avoids mixed-type GeoJSON errors)
+    # osmid as string in BOTH frames (avoids mixed-type GeoJSON errors).
+    # Guard against old cached files that may lack the column (osmnx 2.x change).
+    for gdf, prefix in ((gdf_traffic, "node"), (gdf_pois, "poi")):
+        if "osmid" not in gdf.columns:
+            gdf["osmid"] = prefix + "_" + gdf.reset_index(drop=True).index.astype(str)
     gdf_traffic["osmid"] = gdf_traffic["osmid"].astype(str)
     gdf_pois["osmid"] = gdf_pois["osmid"].astype(str)
     gdf_traffic["name"] = None
