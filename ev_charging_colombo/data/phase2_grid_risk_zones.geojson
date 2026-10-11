@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "phase2_grid_risk_zones",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::32644" } },
+"features": [
+{ "type": "Feature", "properties": { "risk_zone": "Red" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 79.858707985, 6.915939575 ], [ 79.858707985, 6.927834125 ], [ 79.851753515, 6.927834125 ], [ 79.851753515, 6.915939575 ], [ 79.858707985, 6.915939575 ] ] ] } },
+{ "type": "Feature", "properties": { "risk_zone": "Orange" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 79.837844575, 6.9337814 ], [ 79.837844575, 6.94567595 ], [ 79.830890105, 6.94567595 ], [ 79.830890105, 6.9337814 ], [ 79.837844575, 6.9337814 ] ] ] } },
+{ "type": "Feature", "properties": { "risk_zone": "Amber" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 79.874703266, 6.880255925 ], [ 79.874703266, 6.89571884 ], [ 79.865662455, 6.89571884 ], [ 79.865662455, 6.880255925 ], [ 79.874703266, 6.880255925 ] ] ] } }
+]
+}
