@@ -150,3 +150,36 @@ F_POWER_DIST  = DATA_DIR / "phase3_candidates_power_dist.geojson"    # Step 17 o
 F_WITH_DEMAND = DATA_DIR / "phase3_candidates_with_demand.geojson"   # Step 18 out
 F_SCORED      = DATA_DIR / "phase3_scored_candidates.geojson"        # Step 19 out
 F_MAP_P3      = DATA_DIR / "Phase3_Suitability_Scoring_Map.png"      # Step 20 out
+
+# ==================================================================
+# PHASE 4 settings (phased greedy set-cover optimization)
+# ==================================================================
+DT_M = 1000.0                 # service threshold (m): stations beyond this satisfy 0 demand
+THETA = 0.003                 # distance-decay coefficient: satisfaction = exp(-theta * d)
+MIN_STATION_SPACING_M = 500   # hard minimum distance between any two stations
+
+# Should new stations in later phases also respect the 500 m spacing
+# relative to stations built in EARLIER phases? (recommended: True)
+SPACING_ACROSS_PHASES = True
+
+# Deployment schedule: K = number of NEW stations built in that phase
+PHASES = {
+    "Phase_1_2027": {"K": 5, "demand_multiplier": 1.0},   # base demand
+    "Phase_2_2030": {"K": 5, "demand_multiplier": 1.8},   # EV numbers grow
+    "Phase_3_2035": {"K": 5, "demand_multiplier": 3.0},   # high adoption
+}
+
+# Recommended charger capacity per phase (Component 2 logic)
+CAPACITY_MAP = {
+    "Phase_1_2027": "22kW AC",
+    "Phase_2_2030": "50kW DC",
+    "Phase_3_2035": "150kW DC",
+}
+
+# ------------------------------------------------------------------
+# File names (all inside ./data)
+# ------------------------------------------------------------------
+F_DIST_MATRIX = DATA_DIR / "phase4_distance_matrix.npz"             # Step 21 out
+F_SELECTION   = DATA_DIR / "phase4_station_selection.csv"           # Step 22 out
+F_FINAL_PLAN  = DATA_DIR / "component4_final_phased_plan.geojson"   # Step 23 out
+F_MAP_P4      = DATA_DIR / "Component4_Final_Thesis_Map.png"        # Step 24 out
