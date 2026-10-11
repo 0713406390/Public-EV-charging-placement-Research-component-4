@@ -1,20 +1,18 @@
 """
-STEP 22 — Phased greedy set-cover optimization (the Component 4 core).
+STEP 22 — STATEFUL phased greedy set-cover optimization (Component 4 core).
 
 Reads:  data/phase4_distance_matrix.npz    (Step 21)
         data/phase2_integrated_grid.geojson (for base demand, aligned via grid_id)
-Saves:  data/phase4_station_selection.csv
-        One row per station: station_id, phase, seq_in_phase, cand_row,
-        cand_osmid, gain.
+Saves:  data/phase4_station_selection.csv      (one row per station, in build order)
+        data/phase4_deployment_metrics.csv     (coverage KPI per phase — thesis table)
 
-Algorithm per phase:
-    1. Scale base demand by the phase's demand_multiplier
-    2. Greedy max-coverage: pick the candidate whose distance-decayed
-       satisfaction satisfies the most UNMET demand
-    3. Hard constraints: 500 m inter-station spacing + never re-pick a
-       station already built in an earlier phase (blacklist)
+The STATEFUL novelty (kept exactly as designed):
+    - current_coverage carries over BETWEEN phases, so Phase 2/3 stations are
+      chosen to complement — not duplicate — the existing network
+    - the 500 m spacing rule is enforced against ALL stations ever built,
+      not just the ones from the current phase
 
-Run:  python step22_greedy_optimizer.py [--force]
+Run:  python step22_stateful_optimizer.py [--force]
 """
 
 import argparse
@@ -23,70 +21,66 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from config import (DT_M, THETA, MIN_STATION_SPACING_M, SPACING_ACROSS_PHASES,
-                    PHASES, F_SCORED, F_GRID_FINAL, F_DIST_MATRIX, F_SELECTION)
+from config import (DT_M, THETA, MIN_STATION_SPACING_M, PHASES,
+                    F_SCORED, F_GRID_FINAL, F_DIST_MATRIX, F_SELECTION, F_METRICS)
 
 
-def greedy_set_cover(satisfaction, demand, cand_xy, k, min_dist,
-                     blocked=(), spacing_against=()):
+def run_stateful_phase(satisfaction, demand, cand_xy, k, min_dist,
+                       history_idx, current_cov):
     """
-    Greedy maximum-coverage with distance decay.
+    Runs ONE phase of the greedy algorithm while respecting the whole network.
 
-    satisfaction   : (n_candidates, n_cells) precomputed exp(-theta*d), 0 beyond DT
-    demand         : (n_cells,) demand weight per cell
-    blocked        : indices that can NEVER be selected (earlier phases)
-    spacing_against: indices the min-distance rule is checked against
-                     (earlier phases too, if SPACING_ACROSS_PHASES)
+    satisfaction : (n_cand, n_cells) precomputed exp(-theta*d), 0 beyond DT
+    demand       : (n_cells,) demand weights for THIS phase (already scaled)
+    history_idx  : global indices of ALL stations built so far (all phases)
+    current_cov  : (n_cells,) coverage fractions carried over from prior phases
 
-    Returns (newly_selected_indices, their_gains).
+    Returns (new_indices, gains, updated_history, updated_coverage).
     """
-    n_candidates, n_cells = satisfaction.shape
-    demand = np.asarray(demand, dtype=float)
-
-    spacing_pts = list(spacing_against)
+    n_candidates = satisfaction.shape[0]
     new_idx, new_gains = [], []
-    current_cov = np.zeros(n_cells)
 
     for _ in range(k):
-        # --- Hard constraint 1: minimum inter-station spacing --------------
+        # --- 1. STRICT 500 m exclusion against ALL previous stations --------
         valid = np.ones(n_candidates, dtype=bool)
-        for j in spacing_pts:
+        for j in history_idx:
             d = np.hypot(cand_xy[:, 0] - cand_xy[j, 0],
                          cand_xy[:, 1] - cand_xy[j, 1])
             valid[d < min_dist] = False
-
-        # --- Hard constraint 2: never re-pick earlier-phase stations -------
-        valid[list(blocked)] = False
+        valid[list(history_idx)] = False   # never rebuild an existing station
 
         if not valid.any():
-            print("  [warn] No valid candidates left (spacing constraint). Stopping early.")
+            print("  -> No valid locations left respecting 500m constraint!")
             break
 
-        # --- Vectorised marginal gain --------------------------------------
-        # gain_i = sum_j demand_j * (min(1, cov_j + s_ij) - cov_j)
-        #        = sum_j demand_j * min(s_ij, 1 - cov_j)
-        room = np.clip(1.0 - current_cov, 0.0, 1.0)        # unmet coverage fraction
-        gains = np.minimum(satisfaction, room) @ demand    # (n_candidates,)
-        gains[~valid] = -1.0
+        # --- 2. VECTORIZED marginal gain for ALL valid candidates -----------
+        valid_idx = np.where(valid)[0]
+        new_coverage = np.minimum(1.0,
+                                  current_cov[None, :] + satisfaction[valid_idx, :])
+        marginal_coverage = new_coverage - current_cov[None, :]
+        gains = np.sum(demand * marginal_coverage, axis=1)
 
-        best = int(np.argmax(gains))
-        if gains[best] <= 1e-9:
-            print("  [warn] No remaining candidate satisfies any unmet demand. Stopping early.")
+        # --- 3. Select the best candidate ------------------------------------
+        best_local = int(np.argmax(gains))
+        if gains[best_local] <= 1e-9:
+            print("  -> No remaining candidate satisfies any unmet demand. Stopping early.")
             break
+        best_global = int(valid_idx[best_local])
 
-        new_idx.append(best)
-        new_gains.append(float(gains[best]))
-        spacing_pts.append(best)
-        current_cov = np.minimum(1.0, current_cov + satisfaction[best])
+        # --- 4. Update state (coverage carries to the NEXT phase) ------------
+        new_idx.append(best_global)
+        new_gains.append(float(gains[best_local]))
+        history_idx.append(best_global)
+        current_cov = np.minimum(1.0, current_cov + satisfaction[best_global])
 
-        print(f"    Selected candidate row {best:>4} | marginal gain: {gains[best]:.2f}")
+        print(f"  -> Selected Node {best_global} | Marginal Gain: {gains[best_local]:.2f}")
 
-    return new_idx, new_gains
+    return new_idx, new_gains, history_idx, current_cov
 
 
 def main(force: bool = False) -> None:
-    if F_SELECTION.exists() and not force:
-        print(f"[skip] Station selection already cached -> {F_SELECTION}")
+    if F_SELECTION.exists() and F_METRICS.exists() and not force:
+        print(f"[skip] Optimization already cached -> {F_SELECTION}")
         return
 
     if not F_DIST_MATRIX.exists():
@@ -98,12 +92,12 @@ def main(force: bool = False) -> None:
     cand_osmid_saved = data["cand_osmid"]
     grid_id_saved = data["grid_id"]
 
-    # --- Alignment checks against the cached source files ------------------
+    # --- Alignment checks (fail loudly if the matrix is stale) --------------
     gdf_candidates = gpd.read_file(F_SCORED).to_crs("EPSG:32644")
     cand_osmid_file = gdf_candidates["osmid"].astype(str).to_numpy()
     if len(cand_osmid_file) != len(cand_osmid_saved) or \
             not np.array_equal(cand_osmid_file, cand_osmid_saved):
-        raise RuntimeError("Distance matrix out of sync with the candidates file. "
+        raise RuntimeError("Distance matrix out of sync with candidates. "
                            "Re-run: python step21_distance_matrix.py --force")
 
     gdf_grid = gpd.read_file(F_GRID_FINAL).to_crs("EPSG:32644")
@@ -111,35 +105,36 @@ def main(force: bool = False) -> None:
     demand_lookup = gdf_feasible.set_index("grid_id")["smoothed_demand"]
     base_demand = demand_lookup.reindex(grid_id_saved).to_numpy()
     if np.isnan(base_demand).any():
-        raise RuntimeError("Grid file out of sync with the distance matrix. "
+        raise RuntimeError("Grid file out of sync with distance matrix. "
                            "Re-run: python step21_distance_matrix.py --force")
 
-    # --- Precompute the satisfaction matrix (decay + hard DT cutoff) -------
-    satisfaction = np.where(dist_matrix <= DT_M, np.exp(-THETA * dist_matrix), 0.0)
+    # --- Pre-compute satisfaction ONCE (saves massive computation time) -----
+    satisfaction_matrix = np.where(dist_matrix <= DT_M,
+                                   np.exp(-THETA * dist_matrix), 0.0)
     print(f"Satisfaction matrix ready (DT={DT_M:.0f} m, theta={THETA}).")
 
-    # --- Run the phased deployment ------------------------------------------
-    all_selected = []
-    rows = []
+    # --- Global state --------------------------------------------------------
+    current_coverage = np.zeros(len(base_demand))   # starts at zero
+    selected_history = []                            # indices of ALL stations
+
+    selection_rows, metric_rows = [], []
     station_counter = 0
 
-    for phase_name, params in PHASES.items():
-        k = params["K"]
-        mult = params["demand_multiplier"]
-        print(f"\n--- Running {phase_name} (target: {k} stations, demand x{mult}) ---")
+    for phase_name, cfg in PHASES.items():
+        print(f"\n{'=' * 40}")
+        print(f"RUNNING {phase_name} | Target: {cfg['K']} NEW stations")
+        print(f"{'=' * 40}")
 
-        demand = base_demand * mult
-        spacing_against = all_selected if SPACING_ACROSS_PHASES else []
+        phase_demand = base_demand * cfg["demand_mult"]
 
-        new_idx, new_gains = greedy_set_cover(
-            satisfaction, demand, cand_xy, k, MIN_STATION_SPACING_M,
-            blocked=tuple(all_selected),
-            spacing_against=tuple(spacing_against),
+        new_idx, new_gains, current_coverage, selected_history = run_stateful_phase(
+            satisfaction_matrix, phase_demand, cand_xy,
+            cfg["K"], MIN_STATION_SPACING_M, selected_history, current_coverage,
         )
 
         for seq, (idx, gain) in enumerate(zip(new_idx, new_gains), start=1):
             station_counter += 1
-            rows.append({
+            selection_rows.append({
                 "station_id": f"S{station_counter:02d}",
                 "phase": phase_name,
                 "seq_in_phase": seq,
@@ -148,22 +143,28 @@ def main(force: bool = False) -> None:
                 "gain": round(gain, 4),
             })
 
-        all_selected.extend(new_idx)
-        print(f"  -> {len(new_idx)} new stations | total so far: {len(all_selected)}")
+        # --- Phase KPI: cumulative network coverage against THIS phase demand
+        covered_demand = float((current_coverage * phase_demand).sum())
+        total_demand = float(phase_demand.sum())
+        metric_rows.append({
+            "phase": phase_name,
+            "k_target": cfg["K"],
+            "k_built": len(new_idx),
+            "demand_multiplier": cfg["demand_mult"],
+            "stations_in_network": len(selected_history),
+            "coverage_pct": round(100 * covered_demand / max(total_demand, 1e-9), 2),
+        })
+        print(f"Total stations in network now: {len(selected_history)}")
 
-    # --- Network performance report (base demand) ----------------------------
-    if all_selected:
-        total_cov = np.minimum(1.0, satisfaction[all_selected].sum(axis=0))
-        satisfied = float((total_cov * base_demand).sum())
-        total = float(base_demand.sum())
-        print(f"\nNetwork coverage of base demand: "
-              f"{satisfied:.1f} / {total:.1f} ({100 * satisfied / max(total, 1e-9):.1f}%)")
+    pd.DataFrame(selection_rows).to_csv(F_SELECTION, index=False)
+    pd.DataFrame(metric_rows).to_csv(F_METRICS, index=False)
 
-    pd.DataFrame(rows).to_csv(F_SELECTION, index=False)
-    print(f"[done] Saved {len(rows)} station selections -> {F_SELECTION}")
+    print("\nDeployment metrics per phase:")
+    print(pd.DataFrame(metric_rows).to_string(index=False))
+    print(f"\n[done] Saved {len(selection_rows)} selections -> {F_SELECTION}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Step 22: phased greedy optimization")
+    parser = argparse.ArgumentParser(description="Step 22: stateful phased optimizer")
     parser.add_argument("--force", action="store_true", help="recompute even if cached")
     main(parser.parse_args().force)
