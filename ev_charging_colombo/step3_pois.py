@@ -25,7 +25,8 @@ def main(force: bool = False) -> None:
     print("Extracting fuel stations and parking lots...")
     gdf_pois = ox.features_from_polygon(study_area, tags=TAGS_POIS)
 
-    # Flatten the (element_type, osmid) MultiIndex into normal columns
+    # Flatten the MultiIndex (element_type, osmid) into normal columns.
+    # In osmnx ≥ 2.x the index structure may differ, so we reset safely.
     gdf_pois = gdf_pois.reset_index()
 
     # Keep only point geometries (drop polygon footprints for simplicity)
@@ -43,8 +44,11 @@ def main(force: bool = False) -> None:
         gdf_pois["amenity"] = "unknown"
     gdf_pois["poi_type"] = gdf_pois["amenity"].fillna("unknown")
 
-    # Keep the dataset small & clean
-    gdf_pois = gdf_pois[["element_type", "osmid", "name", "poi_type", "geometry"]]
+    # Keep the dataset small & clean — only grab columns that actually exist
+    # (osmnx 2.x may not produce element_type/osmid as columns after reset_index)
+    desired = ["element_type", "osmid", "name", "poi_type", "geometry"]
+    keep = [c for c in desired if c in gdf_pois.columns]
+    gdf_pois = gdf_pois[keep]
     gdf_pois.to_file(F_POIS, driver="GeoJSON")
 
     print(f"[done] Found {len(gdf_pois)} potential POI candidates (fuel/parking).")
