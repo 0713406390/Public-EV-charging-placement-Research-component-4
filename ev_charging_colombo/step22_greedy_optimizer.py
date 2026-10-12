@@ -35,7 +35,7 @@ def run_stateful_phase(satisfaction, demand, cand_xy, k, min_dist,
     history_idx  : global indices of ALL stations built so far (all phases)
     current_cov  : (n_cells,) coverage fractions carried over from prior phases
 
-    Returns (new_indices, gains, updated_history, updated_coverage).
+    Returns (new_indices, gains, updated_coverage, updated_history).
     """
     n_candidates = satisfaction.shape[0]
     new_idx, new_gains = [], []
@@ -75,7 +75,7 @@ def run_stateful_phase(satisfaction, demand, cand_xy, k, min_dist,
 
         print(f"  -> Selected Node {best_global} | Marginal Gain: {gains[best_local]:.2f}")
 
-    return new_idx, new_gains, history_idx, current_cov
+    return new_idx, new_gains, current_cov, history_idx
 
 
 def main(force: bool = False) -> None:
@@ -86,10 +86,14 @@ def main(force: bool = False) -> None:
     if not F_DIST_MATRIX.exists():
         raise FileNotFoundError(f"{F_DIST_MATRIX} not found — run step21_distance_matrix.py first.")
 
-    data = np.load(F_DIST_MATRIX, allow_pickle=False)
+    # allow_pickle=True is needed for old cached .npz files where cand_osmid was
+    # saved as a Python-string object array.  Re-running step21 --force will
+    # produce a fixed-width unicode array that no longer needs pickle.
+    data = np.load(F_DIST_MATRIX, allow_pickle=True)
     dist_matrix = data["dist"]
     cand_xy = data["cand_xy"]
-    cand_osmid_saved = data["cand_osmid"]
+    # Normalise to plain numpy str_ array regardless of how it was saved
+    cand_osmid_saved = np.array(data["cand_osmid"], dtype=np.str_)
     grid_id_saved = data["grid_id"]
 
     # --- Alignment checks (fail loudly if the matrix is stale) --------------
