@@ -116,6 +116,28 @@ F_GRID_FINAL  = DATA_DIR / "phase2_integrated_grid.geojson"      # Step 13 out
 F_MAP_P2      = DATA_DIR / "Phase2_Spatial_Integration_Map.png"  # Step 14 out
 
 # ==================================================================
+# PHASE 2.5 — LANDSLIDE HAZARD (multi-hazard extension)
+# ==================================================================
+# Same veto mechanism as grid risk: worst case wins
+LANDSLIDE_FEASIBILITY = {"High": 0.0, "Moderate": 0.5, "Low": 1.0}
+
+# Drop-in files (checked in priority order by Step 12b)
+F_LANDSLIDE_REAL      = DATA_DIR / "landslide_hazard_zones_real.geojson"  # polygons + 'susceptibility'
+F_LANDSLIDE_INVENTORY = DATA_DIR / "landslide_inventory_real.csv"         # points w/ lon/lat (NASA GLC, DesInventar)
+
+# Historic-event buffer -> suspect zone radius
+LANDSLIDE_BUFFER_M = 200
+
+# DEM slope-proxy classification (degrees; only used if no drop-in file exists)
+SLOPE_HIGH_DEG     = 15.0
+SLOPE_MODERATE_DEG = 8.0
+
+# Step 12b outputs
+F_LANDSLIDE_ZONES = DATA_DIR / "landslide_hazard_zones.geojson"
+F_SLOPE_RASTER    = DATA_DIR / "landslide_slope_degrees.tif"   # appendix figure material
+
+
+# ==================================================================
 # PHASE 3 settings
 # ==================================================================
 TAGS_POWER = {"power": "line"}   # OSM power distribution lines
