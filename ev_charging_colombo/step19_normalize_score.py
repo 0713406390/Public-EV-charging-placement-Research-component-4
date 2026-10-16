@@ -61,12 +61,14 @@ def main(force: bool = False) -> None:
     print("All criteria normalized to 0-1 scale.")
 
     # --- 4. Weighted Sum Model (Map Algebra) -------------------------------
+    gdf["norm_landslide"] = gdf["landslide_feas"].fillna(1.0)   # already 0-1, higher = safer
+
     gdf["Suitability_Score"] = (
         W_DEMAND * gdf["norm_demand"]
         + W_TRAFFIC * gdf["norm_traffic"]
         + W_GRID_PROX * gdf["norm_grid_prox"]
+        + W_LANDSLIDE * gdf["norm_landslide"]
     )
-
     # --- 5. Rank and report -------------------------------------------------
     gdf = gdf.sort_values("Suitability_Score", ascending=False).reset_index(drop=True)
     gdf["rank"] = range(1, len(gdf) + 1)
