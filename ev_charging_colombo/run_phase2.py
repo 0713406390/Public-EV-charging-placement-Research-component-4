@@ -15,6 +15,7 @@ import step9_demand_points
 import step10_demand_to_grid
 import step11_wna_smoothing
 import step12_grid_risk_zones
+import step12b_landslide_zones
 import step13_grid_constraints
 import step14_visualize_phase2
 
@@ -24,6 +25,7 @@ PIPELINE = [
     ("Step 10 — demand -> grid",   step10_demand_to_grid),
     ("Step 11 — WNA smoothing",    step11_wna_smoothing),
     ("Step 12 — grid risk zones",  step12_grid_risk_zones),
+    ("Step 12b — landslide zones",  step12b_landslide_zones),
     ("Step 13 — constraints/veto", step13_grid_constraints),
     ("Step 14 — Phase 2 map",      step14_visualize_phase2),
 ]
