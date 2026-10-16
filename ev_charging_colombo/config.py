@@ -147,10 +147,10 @@ GRID_PROX_FULL_M = 50
 GRID_PROX_ZERO_M = 200
 
 # Multi-criteria weights (weighted-sum model — keep the sum = 1.0)
-W_DEMAND    = 0.50
+W_DEMAND    = 0.45
 W_TRAFFIC   = 0.30
-W_GRID_PROX = 0.20
-
+W_GRID_PROX = 0.15
+W_LANDSLIDE = 0.10
 
 def sanitize_for_geojson(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """GeoJSON cannot store list/dict values -> stringify such columns."""
