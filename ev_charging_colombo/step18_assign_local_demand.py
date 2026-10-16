@@ -24,9 +24,11 @@ def main(force: bool = False) -> None:
     gdf_grid = gpd.read_file(F_GRID_FINAL)
 
     joined = gpd.sjoin(
-        gdf, gdf_grid[["grid_id", "smoothed_demand", "geometry"]],
+        gdf, gdf_grid[["grid_id", "smoothed_demand", "landslide_feas", "geometry"]],
         how="left", predicate="intersects",
     )
+    ...
+    joined["landslide_feas"] = joined["landslide_feas"].fillna(1.0)
 
     # A point can technically touch 2 clipped cells -> keep the first match
     joined = (joined
