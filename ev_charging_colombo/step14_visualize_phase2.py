@@ -39,7 +39,7 @@ def main(force: bool = False) -> None:
     vetoed = gdf_grid[gdf_grid["grid_feasibility"] == 0.0]
     if len(vetoed):
         vetoed.plot(ax=ax, facecolor="none", edgecolor="black", linewidth=2,
-                    label="Grid Veto Zone (Red/Orange)")
+                    label="Vetoed Zones (Grid Risk / Landslide)")
 
     # 2b. Amber cells (soft penalty — dashed outline)
     amber = gdf_grid[gdf_grid["grid_feasibility"] == 0.5]
