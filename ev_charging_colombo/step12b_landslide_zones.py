@@ -180,16 +180,17 @@ def main(force: bool = False) -> None:
         print(f"[skip] Landslide zones already cached -> {F_LANDSLIDE_ZONES}")
         return
 
-    study_poly = load_study_polygon()
+    study_poly_4326 = load_study_polygon()
+    study_poly_utm = gpd.GeoSeries([study_poly_4326], crs="EPSG:4326").to_crs(TARGET_CRS).iloc[0]
 
     if F_LANDSLIDE_REAL.exists():
         gdf_zones = gpd.clip(load_real_zones(),
-                             gpd.GeoSeries([study_poly], crs=TARGET_CRS))
+                             gpd.GeoSeries([study_poly_utm], crs=TARGET_CRS))
     elif F_LANDSLIDE_INVENTORY.exists():
-        gdf_zones = load_inventory_zones(study_poly)
+        gdf_zones = load_inventory_zones(study_poly_utm)
     else:
         print("[warn] No landslide data files found — building DEM slope proxy.")
-        gdf_zones, _ = slope_proxy_zones(study_poly)
+        gdf_zones, _ = slope_proxy_zones(study_poly_utm)
 
     if len(gdf_zones) == 0:
         print("[warn] No landslide-susceptible area detected inside the study boundary.")
