@@ -1,4 +1,4 @@
 phase,k_target,k_built,demand_multiplier,stations_in_network,coverage_pct
-Phase_1_2027,5,0,1.0,0,0.0
-Phase_2_2030,10,0,2.2,0,0.0
-Phase_3_2035,15,0,4.5,0,0.0
+Phase_1_2027,5,5,1.0,5,7.82
+Phase_2_2030,10,10,2.2,15,21.55
+Phase_3_2035,15,15,4.5,30,38.79
