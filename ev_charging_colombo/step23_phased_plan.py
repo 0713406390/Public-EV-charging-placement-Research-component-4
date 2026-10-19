@@ -16,7 +16,7 @@ import argparse
 import pandas as pd
 import geopandas as gpd
 
-from config import CAPACITY_MAP, F_SELECTION, F_SCORED, F_FINAL_PLAN
+from config import CAPACITY_MAP, F_SELECTION, F_SCORED, F_FINAL_PLAN, F_METRICS
 
 
 def main(force: bool = False) -> None:
@@ -25,6 +25,11 @@ def main(force: bool = False) -> None:
         return
 
     sel = pd.read_csv(F_SELECTION)
+    if sel.empty:
+        raise RuntimeError(
+            "Station selection is empty. Step 22 selected zero stations, so there is no phased plan to build. "
+            f"Check {F_METRICS} and upstream demand/feasibility inputs, then rerun step22_greedy_optimizer.py --force."
+        )
     gdf_candidates = gpd.read_file(F_SCORED).to_crs("EPSG:32644")
 
     # Deployment order = row order of the selection CSV (single source of truth)
