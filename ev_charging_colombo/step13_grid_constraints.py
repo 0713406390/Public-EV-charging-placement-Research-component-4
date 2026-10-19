@@ -17,6 +17,7 @@ Run:  python step13_grid_constraints.py [--force]
 import argparse
 
 import geopandas as gpd
+import pandas as pd
 
 from config import (RISK_SEVERITY, LANDSLIDE_FEASIBILITY,
                     F_GRID_SMOOTH, F_RISK_ZONES, F_LANDSLIDE_ZONES, F_GRID_FINAL)
