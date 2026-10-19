@@ -46,7 +46,10 @@ def main(force: bool = False) -> None:
         if "ev_demand" not in gdf_demand.columns:
             raise ValueError("Real demand file must contain an 'ev_demand' column.")
     else:
-        boundary = gpd.GeoDataFrame(geometry=[load_study_polygon()], crs=TARGET_CRS)
+        boundary = gpd.GeoDataFrame(
+            geometry=[load_study_polygon()],
+            crs="EPSG:4326",
+        ).to_crs(TARGET_CRS)
         gdf_demand = simulate_placeholder(boundary)
 
     gdf_demand.to_file(F_DEMAND_PTS, driver="GeoJSON")
