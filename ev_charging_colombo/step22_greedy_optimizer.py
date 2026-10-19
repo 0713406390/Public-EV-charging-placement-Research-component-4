@@ -160,12 +160,17 @@ def main(force: bool = False) -> None:
         })
         print(f"Total stations in network now: {len(selected_history)}")
 
-    pd.DataFrame(selection_rows).to_csv(F_SELECTION, index=False)
+    selection_columns = ["station_id", "phase", "seq_in_phase", "cand_row", "cand_osmid", "gain"]
+    selection_df = pd.DataFrame(selection_rows, columns=selection_columns)
+    selection_df.to_csv(F_SELECTION, index=False)
     pd.DataFrame(metric_rows).to_csv(F_METRICS, index=False)
 
     print("\nDeployment metrics per phase:")
     print(pd.DataFrame(metric_rows).to_string(index=False))
-    print(f"\n[done] Saved {len(selection_rows)} selections -> {F_SELECTION}")
+    if selection_df.empty:
+        print(f"\n[warn] No stations selected. Wrote header-only CSV -> {F_SELECTION}")
+    else:
+        print(f"\n[done] Saved {len(selection_rows)} selections -> {F_SELECTION}")
 
 
 if __name__ == "__main__":
