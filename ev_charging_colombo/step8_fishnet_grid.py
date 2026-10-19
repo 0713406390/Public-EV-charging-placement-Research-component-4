@@ -53,7 +53,11 @@ def main(force: bool = False) -> None:
         return
 
     print("Building the fishnet grid...")
-    gdf_boundary = gpd.GeoDataFrame(geometry=[load_study_polygon()], crs=TARGET_CRS)
+    boundary_wgs84 = gpd.GeoDataFrame(
+        geometry=[load_study_polygon()],
+        crs="EPSG:4326",
+    )
+    gdf_boundary = boundary_wgs84.to_crs(TARGET_CRS)
     gdf_grid = create_fishnet(gdf_boundary, GRID_SIZE_M)
 
     gdf_grid.to_file(F_GRID_CELLS, driver="GeoJSON")
