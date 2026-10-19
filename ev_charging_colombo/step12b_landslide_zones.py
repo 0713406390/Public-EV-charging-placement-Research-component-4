@@ -27,6 +27,7 @@ import math
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from shapely.geometry import shape
 
 from config import (TARGET_CRS, LANDSLIDE_FEASIBILITY, LANDSLIDE_BUFFER_M,
                     SLOPE_HIGH_DEG, SLOPE_MODERATE_DEG,
