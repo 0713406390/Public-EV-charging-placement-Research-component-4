@@ -55,7 +55,10 @@ def main(force: bool = False) -> None:
             raise ValueError("Real risk file must contain a 'risk_zone' column "
                              "(values: Red / Orange / Amber).")
     else:
-        boundary = gpd.GeoDataFrame(geometry=[load_study_polygon()], crs=TARGET_CRS)
+        boundary = gpd.GeoDataFrame(
+            geometry=[load_study_polygon()],
+            crs="EPSG:4326",
+        ).to_crs(TARGET_CRS)
         gdf_risk = simulate_placeholder(boundary)
 
     gdf_risk.to_file(F_RISK_ZONES, driver="GeoJSON")
